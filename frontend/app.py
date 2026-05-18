@@ -1,0 +1,224 @@
+import streamlit as st
+import requests
+
+API_BASE = "http://localhost:8000"
+
+# --------------------------------------------------------
+# ページ設定
+# --------------------------------------------------------
+st.set_page_config(
+    page_title="AI 問い合わせアプリ",
+    page_icon="💬",
+    layout="wide",
+)
+
+# --------------------------------------------------------
+# カスタム CSS
+# --------------------------------------------------------
+st.markdown(
+    """
+    <style>
+    .urgency-high   { color: #d32f2f; font-weight: bold; }
+    .urgency-medium { color: #f57c00; font-weight: bold; }
+    .urgency-low    { color: #388e3c; font-weight: bold; }
+    .result-box {
+        background: #f5f5f5;
+        border-left: 4px solid #1976d2;
+        padding: 1rem 1.2rem;
+        border-radius: 4px;
+        margin-top: 0.5rem;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# --------------------------------------------------------
+# ヘルパー
+# --------------------------------------------------------
+def urgency_html(urgency: str) -> str:
+    cls = {"高": "urgency-high", "中": "urgency-medium", "低": "urgency-low"}.get(urgency, "")
+    return f'<span class="{cls}">{urgency}</span>'
+
+
+def fetch_inquiries() -> list[dict]:
+    try:
+        res = requests.get(f"{API_BASE}/inquiries", timeout=10)
+        res.raise_for_status()
+        return res.json()
+    except requests.exceptions.ConnectionError:
+        st.error("バックエンド API に接続できません。`uvicorn backend.main:app` が起動しているか確認してください。")
+        return []
+    except Exception as e:
+        st.error(f"一覧の取得に失敗しました: {e}")
+        return []
+
+
+def fetch_inquiry(inquiry_id: int) -> dict | None:
+    try:
+        res = requests.get(f"{API_BASE}/inquiries/{inquiry_id}", timeout=10)
+        if res.status_code == 404:
+            st.error("該当する問い合わせが見つかりませんでした。")
+            return None
+        res.raise_for_status()
+        return res.json()
+    except requests.exceptions.ConnectionError:
+        st.error("バックエンド API に接続できません。")
+        return None
+    except Exception as e:
+        st.error(f"詳細の取得に失敗しました: {e}")
+        return None
+
+
+# --------------------------------------------------------
+# セッション初期化
+# --------------------------------------------------------
+if "page" not in st.session_state:
+    st.session_state.page = "問い合わせ入力"
+if "detail_id" not in st.session_state:
+    st.session_state.detail_id = None
+
+# --------------------------------------------------------
+# サイドバー（ボタン方式でセッションと競合しない）
+# --------------------------------------------------------
+st.sidebar.title("💬 AI 問い合わせ")
+st.sidebar.markdown("---")
+
+if st.sidebar.button("📝 問い合わせ入力", use_container_width=True):
+    st.session_state.page = "問い合わせ入力"
+    st.session_state.detail_id = None
+    st.rerun()
+
+if st.sidebar.button("📋 一覧表示", use_container_width=True):
+    st.session_state.page = "一覧表示"
+    st.session_state.detail_id = None
+    st.rerun()
+
+st.sidebar.markdown("---")
+st.sidebar.caption(f"現在: {st.session_state.page}")
+
+# --------------------------------------------------------
+# 問い合わせ入力画面
+# --------------------------------------------------------
+if st.session_state.page == "問い合わせ入力":
+    st.title("📝 問い合わせ入力")
+    st.write("総務への問い合わせ内容を入力してください。AI が自動でカテゴリー・緊急度を判定し、回答案を生成します。")
+
+    with st.form("inquiry_form", clear_on_submit=False):
+        question = st.text_area(
+            "問い合わせ内容",
+            placeholder="例：有給休暇の申請方法を教えてください。",
+            height=150,
+        )
+        submitted = st.form_submit_button("送信する", type="primary", use_container_width=True)
+
+    if submitted:
+        if not question.strip():
+            st.error("⚠️ 問い合わせ内容を入力してください。")
+        else:
+            with st.spinner("AI が処理中です。しばらくお待ちください…"):
+                try:
+                    res = requests.post(
+                        f"{API_BASE}/inquiries",
+                        json={"question": question},
+                        timeout=60,
+                    )
+
+                    if res.status_code == 201:
+                        data = res.json()
+                        st.success("✅ 問い合わせを登録しました。")
+
+                        st.write(f"**カテゴリー：** {data['category']}")
+                        st.write(f"**緊急度：** {data['urgency']}")
+                        st.write(f"**回答案：** {data['answer']}")
+
+                        st.caption(f"登録ID: {data['id']} ／ 登録時刻: {data['created_at']}")
+
+                    elif res.status_code == 422:
+                        detail = res.json().get("detail", "入力内容を確認してください。")
+                        st.error(f"⚠️ {detail}")
+                    else:
+                        detail = res.json().get("detail", "不明なエラーが発生しました。")
+                        st.error(f"❌ サーバーエラー: {detail}")
+
+                except requests.exceptions.ConnectionError:
+                    st.error("❌ バックエンド API に接続できません。`uvicorn backend.main:app` が起動しているか確認してください。")
+                except requests.exceptions.Timeout:
+                    st.error("❌ AI の処理がタイムアウトしました。再度お試しください。")
+                except Exception as e:
+                    st.error(f"❌ 予期しないエラーが発生しました: {e}")
+
+# --------------------------------------------------------
+# 一覧表示画面
+# --------------------------------------------------------
+elif st.session_state.page == "一覧表示":
+    st.title("📋 問い合わせ一覧")
+
+    inquiries = fetch_inquiries()
+
+    if not inquiries:
+        st.info("登録された問い合わせはありません。")
+    else:
+        st.write(f"全 **{len(inquiries)}** 件")
+
+        # ヘッダー行
+        header = st.columns([1, 2.5, 4, 2, 1.5])
+        header[0].markdown("**ID**")
+        header[1].markdown("**登録時刻**")
+        header[2].markdown("**問い合わせ内容**")
+        header[3].markdown("**カテゴリー**")
+        header[4].markdown("**詳細**")
+
+        st.divider()
+
+        for item in inquiries:
+            col_id, col_time, col_q, col_cat, col_btn = st.columns([1, 2.5, 4, 2, 1.5])
+            col_id.write(item["id"])
+            # ISO 8601 を見やすく整形
+            created = item["created_at"].replace("T", " ")[:16]
+            col_time.write(created)
+            # 長い問い合わせは省略表示
+            q_short = item["question"][:40] + "…" if len(item["question"]) > 40 else item["question"]
+            col_q.write(q_short)
+            col_cat.write(item["category"])
+            if col_btn.button("詳細", key=f"detail_{item['id']}"):
+                st.session_state.page = "詳細表示"
+                st.session_state.detail_id = item["id"]
+                st.rerun()
+
+# --------------------------------------------------------
+# 詳細表示画面
+# --------------------------------------------------------
+elif st.session_state.page == "詳細表示":
+    if st.button("← 一覧に戻る"):
+        st.session_state.page = "一覧表示"
+        st.session_state.detail_id = None
+        st.rerun()
+
+    inquiry_id = st.session_state.detail_id
+    if inquiry_id is None:
+        st.warning("詳細を表示する問い合わせが選択されていません。")
+    else:
+        data = fetch_inquiry(inquiry_id)
+        if data:
+            st.title(f"🔍 問い合わせ詳細（ID: {data['id']}）")
+            st.divider()
+
+            created = data["created_at"].replace("T", " ")[:19]
+
+            col1, col2, col3 = st.columns(3)
+            col1.metric("登録時刻", created)
+            col2.metric("カテゴリー", data["category"])
+            col3.markdown(
+                f"**緊急度** &nbsp;&nbsp; {urgency_html(data['urgency'])}",
+                unsafe_allow_html=True,
+            )
+
+            st.subheader("📄 問い合わせ内容")
+            st.info(data["question"])
+
+            st.subheader("💡 AI 回答案")
+            st.markdown(
+                f'<div class="result-box">{data["answer"]}</div>',
+                unsafe_allow_html=True,
+            )
