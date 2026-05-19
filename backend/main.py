@@ -27,6 +27,24 @@ app = FastAPI(title="AI Inquiry API", version="1.0.0")
 class InquiryRequest(BaseModel):
     question: str
 
+# JSON抽出（重要）
+def extract_json(text: str):
+    """
+    Geminiの出力から安全にJSONだけ取り出す
+    """
+    text = text.strip()
+
+    # ```json の除去
+    text = re.sub(r"^```(?:json)?\s*", "", text)
+    text = re.sub(r"\s*```$", "", text)
+
+    # JSON部分だけ抽出（混入対策）
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if match:
+        return json.loads(match.group())
+
+    return json.loads(text)
+
 # ルート確認
 @app.get("/")
 def root():
@@ -41,12 +59,12 @@ def create_inquiry(request: InquiryRequest):
             detail="問い合わせ内容を入力してください。")
 
     prompt = f"""
-あなたは社内総務の問い合わせ対応AIです。
-以下の問い合わせ内容を分析し、必ず下記のJSON形式のみで返してください。
-前置きや説明文、マークダウン記法（```json など）は一切不要です。
+あなたは社内総務の問い合わせ分類AIです。
 
-以下のJSON形式のみで返してください。
+必ず「JSONだけ」を返してください。
+説明・Markdownは禁止です。
 
+出力形式：
 {{
   "category": "勤怠 または 休暇 または 給与 または 経費精算 または 社員情報変更 または その他 のいずれか1つ",
   "urgency": "高 または 中 または 低 のいずれか1つ",
@@ -62,25 +80,24 @@ def create_inquiry(request: InquiryRequest):
 
         raw = response.text.strip()
 
-        # マークダウンコードブロックの除去
-        raw = re.sub(r"^```(?:json)?\s*", "", raw)
-        raw = re.sub(r"\s*```$", "", raw)
-
-        ai_result = json.loads(raw)
+        # JSON抽出して安全パース
+        ai_result = extract_json(raw)
 
     except json.JSONDecodeError:  # AIの応答がJSONとして解析できない場合
-        raise HTTPException(status_code=500, 
-                            detail="AI の応答を JSON として解析できませんでした。再度お試しください。"
-                            )
+        raise HTTPException(
+            status_code=500, 
+            detail="AI の応答を JSON として解析できませんでした。再度お試しください。"
+        )
     except Exception as e:        # その他のエラー（APIエラーなど）
-        raise HTTPException(status_code=500, 
-                            detail=f"AI 処理中にエラーが発生しました: {str(e)}"
-                            )
+        raise HTTPException(
+            status_code=500, 
+            detail=f"AI 処理中にエラーが発生しました: {str(e)}"
+        )
 
     # バリデーション
     category = ai_result.get("category", "その他")
     urgency = ai_result.get("urgency", "中")
-    answer = ai_result.get("answer", "")
+    answer = ai_result.get("answer", "回答を生成できませんでした。")
 
     # if category not in VALID_CATEGORIES:
     #     category = "その他"

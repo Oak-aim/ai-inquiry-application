@@ -71,8 +71,6 @@ if "detail_id" not in st.session_state:
     st.session_state.detail_id = None
 
 # サイドバー（ボタン方式でセッションと競合しない）
-st.sidebar.title("AI 問い合わせアプリ")
-st.sidebar.markdown("---")
 
 page = st.sidebar.radio(
     "メニュー",
@@ -90,6 +88,8 @@ st.sidebar.caption(f"現在: {st.session_state.page}")
 
 # 問い合わせ入力画面
 if st.session_state.page == "問い合わせ入力":
+    st.title("AI 問い合わせアプリ")
+    st.markdown("---")
     st.title("問い合わせ入力")
     st.write("総務への問い合わせ内容を入力してください。AI が自動でカテゴリー・緊急度を判定し、回答案を生成します。")
 
@@ -140,6 +140,9 @@ if st.session_state.page == "問い合わせ入力":
 
 # 一覧表示画面
 elif st.session_state.page == "一覧表示":
+    st.title("AI 問い合わせアプリ")
+    st.markdown("---")
+
     st.title("問い合わせ一覧")
 
     inquiries = fetch_inquiries()
@@ -187,12 +190,13 @@ elif st.session_state.page == "詳細表示":
     else:
         data = fetch_inquiry(inquiry_id)
         if data:
-            st.title(f"問い合わせ詳細（ID: {data['id']}）")
+            st.title("問い合わせ詳細")
             st.divider()
 
             created = datetime.fromisoformat(data["created_at"]).strftime("%Y-%m-%d %H:%M")
 
             # col1, col2, col3 = st.columns(3)
+            st.write("**ID**：", data["id"])
             st.write("**登録時刻**：", created)
             st.write("**カテゴリー**：", data["category"])
             st.markdown(
@@ -203,7 +207,7 @@ elif st.session_state.page == "詳細表示":
             st.subheader("問い合わせ内容")
             st.write(data["question"])
 
-            st.subheader("AI 回答案")
+            st.subheader("回答案")
             st.markdown(
                 f'<div class="responseult-box">{data["answer"]}</div>',
                 unsafe_allow_html=True,
