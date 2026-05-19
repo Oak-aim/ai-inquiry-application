@@ -4,16 +4,16 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional
 
-BASE_DIR = Path(__file__).resolve().parent
-DATA_PATH = BASE_DIR.parent / "data" / "inquiries.json" # プロジェクトルートからの相対パス
+BASE_DIR = Path(__file__).parent.parent
+FILE_PATH = BASE_DIR / "data" / "inquiries.json" # プロジェクトルートからの相対パス
 
 JST = timezone(timedelta(hours=9))
 
 def _load() -> list[dict]:
     """JSONファイルからデータを読み込む"""
-    if not DATA_PATH.exists():
+    if not FILE_PATH.exists():
         return []
-    with DATA_PATH.open("r", encoding="utf-8") as f:
+    with FILE_PATH.open("r", encoding="utf-8") as f:
         try:
             return json.load(f)
         except json.JSONDecodeError:
@@ -22,8 +22,8 @@ def _load() -> list[dict]:
 
 def _save(data: list[dict]) -> None:
     """JSONファイルへデータを書き込む"""
-    os.makedirs(os.path.dirname(DATA_PATH), exist_ok=True)
-    with DATA_PATH.open("w", encoding="utf-8") as f:
+    os.makedirs(os.path.dirname(FILE_PATH), exist_ok=True)
+    with FILE_PATH.open("w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 

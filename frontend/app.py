@@ -74,15 +74,12 @@ if "detail_id" not in st.session_state:
 st.sidebar.title("AI 問い合わせアプリ")
 st.sidebar.markdown("---")
 
-if st.sidebar.button("問い合わせ入力", use_container_width=True):
-    st.session_state.page = "問い合わせ入力"
-    st.session_state.detail_id = None
-    st.rerun()
+page = st.sidebar.radio(
+    "メニュー",
+    ["問い合わせ入力", "一覧表示"]
+)
 
-if st.sidebar.button("一覧表示", use_container_width=True):
-    st.session_state.page = "一覧表示"
-    st.session_state.detail_id = None
-    st.rerun()
+st.session_state.page = page
 
 st.sidebar.markdown("---")
 st.sidebar.caption(f"現在: {st.session_state.page}")
