@@ -121,7 +121,7 @@ def create_inquiry(request: InquiryRequest):
 
         text = response.text.strip()
 
-        # ```json 제거
+        # ```json 제거w
         text = text.replace("```json", "")
         text = text.replace("```", "")
 

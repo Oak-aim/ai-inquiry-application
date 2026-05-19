@@ -1,17 +1,19 @@
 import json
 import os
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 from typing import Optional
 
-DATA_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "inquiries.json")
-JST = timezone(timedelta(hours=9))
+BASE_DIR = Path(__file__).parent
+DATA_PATH = BASE_DIR / "data" / "inquiries.json" # プロジェクトルートからの相対パス
 
+JST = timezone(timedelta(hours=9))
 
 def _load() -> list[dict]:
     """JSONファイルからデータを読み込む"""
-    if not os.path.exists(DATA_FILE):
+    if not DATA_PATH.exists():
         return []
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
+    with DATA_PATH.open("r", encoding="utf-8") as f:
         try:
             return json.load(f)
         except json.JSONDecodeError:
@@ -20,8 +22,8 @@ def _load() -> list[dict]:
 
 def _save(data: list[dict]) -> None:
     """JSONファイルへデータを書き込む"""
-    os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
+    os.makedirs(os.path.dirname(DATA_PATH), exist_ok=True)
+    with DATA_PATH.open("w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
@@ -30,7 +32,7 @@ def save_inquiry(question: str, category: str, urgency: str, answer: str) -> dic
     data = _load()
 
     new_id = max((item["id"] for item in data), default=0) + 1
-    now = datetime.now(JST).isoformat()
+    now = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
 
     record = {
         "id": new_id,
@@ -45,12 +47,10 @@ def save_inquiry(question: str, category: str, urgency: str, answer: str) -> dic
     _save(data)
     return record
 
-
 def get_all_inquiries() -> list[dict]:
     """全問い合わせを新しい順で返す"""
     data = _load()
     return sorted(data, key=lambda x: x["id"], reverse=True)
-
 
 def get_inquiry_by_id(inquiry_id: int) -> Optional[dict]:
     """IDで問い合わせを取得する"""
