@@ -4,8 +4,8 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional
 
-BASE_DIR = Path(__file__).parent
-DATA_PATH = BASE_DIR / "data" / "inquiries.json" # プロジェクトルートからの相対パス
+BASE_DIR = Path(__file__).resolve().parent
+DATA_PATH = BASE_DIR.parent / "data" / "inquiries.json" # プロジェクトルートからの相対パス
 
 JST = timezone(timedelta(hours=9))
 

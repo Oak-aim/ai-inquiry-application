@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+from datetime import datetime
 
 API_BASE = "http://localhost:8000"
 
@@ -161,10 +162,10 @@ elif st.session_state.page == "一覧表示":
             col_id, col_time, col_q, col_cat, col_btn = st.columns([1, 2.5, 4, 2, 1.5])
             col_id.write(item["id"])
             # ISO 8601 を見やすく整形
-            created = item["created_at"].replace("T", " ")[:16]
+            created = datetime.fromisoformat(item["created_at"]).strftime("%Y-%m-%d %H:%M")
             col_time.write(created)
             # 長い問い合わせは省略表示
-            q_short = item["question"][:40] + "…" if len(item["question"]) > 40 else item["question"]
+            q_short = item["question"][:20] + "…" if len(item["question"]) > 20 else item["question"]
             col_q.write(q_short)
             col_cat.write(item["category"])
             if col_btn.button("詳細", key=f"detail_{item['id']}", type="primary"):
@@ -174,7 +175,7 @@ elif st.session_state.page == "一覧表示":
 
 # 詳細表示画面
 elif st.session_state.page == "詳細表示":
-    if st.button("← 一覧に戻る"):
+    if st.button("一覧に戻る"):
         st.session_state.page = "一覧表示"
         st.session_state.detail_id = None
         st.rerun()
@@ -185,23 +186,23 @@ elif st.session_state.page == "詳細表示":
     else:
         data = fetch_inquiry(inquiry_id)
         if data:
-            st.title(f"🔍 問い合わせ詳細（ID: {data['id']}）")
+            st.title(f"問い合わせ詳細（ID: {data['id']}）")
             st.divider()
 
-            created = data["created_at"].replace("T", " ")[:19]
+            created = datetime.fromisoformat(data["created_at"]).strftime("%Y-%m-%d %H:%M")
 
-            col1, col2, col3 = st.columns(3)
-            col1.metric("登録時刻", created)
-            col2.metric("カテゴリー", data["category"])
-            col3.markdown(
-                f"**緊急度** &nbsp;&nbsp; {urgency_html(data['urgency'])}",
-                unsafe_allow_html=True,
+            # col1, col2, col3 = st.columns(3)
+            st.write("**登録時刻**：", created)
+            st.write("**カテゴリー**：", data["category"])
+            st.markdown(
+                f"**緊急度**：{urgency_html(data['urgency'])}",
+                unsafe_allow_html=True, #急度の色分け、HTMLは無効化されるので、そのまま文字として表示される
             )
 
-            st.subheader("📄 問い合わせ内容")
-            st.info(data["question"])
+            st.subheader("問い合わせ内容")
+            st.write(data["question"])
 
-            st.subheader("💡 AI 回答案")
+            st.subheader("AI 回答案")
             st.markdown(
                 f'<div class="responseult-box">{data["answer"]}</div>',
                 unsafe_allow_html=True,
