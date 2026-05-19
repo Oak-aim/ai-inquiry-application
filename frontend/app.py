@@ -76,10 +76,14 @@ st.sidebar.markdown("---")
 
 page = st.sidebar.radio(
     "メニュー",
-    ["問い合わせ入力", "一覧表示"]
+    ["問い合わせ入力", "一覧表示"],
+    index=0 if st.session_state.page == "問い合わせ入力" else 1,
 )
 
-st.session_state.page = page
+# サイドバーで切り替えた時だけ更新
+if page != st.session_state.page and st.session_state.page != "詳細表示":
+    st.session_state.page = page
+#st.session_state.page = page
 
 st.sidebar.markdown("---")
 st.sidebar.caption(f"現在: {st.session_state.page}")
