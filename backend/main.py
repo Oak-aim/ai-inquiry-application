@@ -90,7 +90,7 @@ def create_inquiry(request: InquiryRequest):
         )
     except Exception as e:        # その他のエラー（APIエラーなど）
         raise HTTPException(
-            status_code=500, 
+            status_code=503, 
             detail=f"AI 処理中にエラーが発生しました: {str(e)}"
         )
 
