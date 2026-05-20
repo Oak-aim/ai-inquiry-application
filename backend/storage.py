@@ -32,8 +32,7 @@ def save_inquiry(question: str, category: str, urgency: str, answer: str) -> dic
     data = _load()
 
     new_id = max((item["id"] for item in data), default=0) + 1
-    now = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
-
+    now = datetime.now(JST).isoformat()
     record = {
         "id": new_id,
         "created_at": now,
